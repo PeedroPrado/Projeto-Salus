@@ -20,29 +20,26 @@ type AuthContextData = {
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
-// Configuração do Axios. 
+// Configuração do Axios
 const api = axios.create({
-  // baseURL: '[http://10.68.54.1:3000/api](http://10.68.54.1:3000/api)' 
   baseURL: 'http://localhost:3000/api'
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [dependentes, setDependentes] = useState<Dependente[]>([
-    { id: 'dep-1', nome: 'Dona Maria' }
-  ]);
-  const [medications, setMedications] = useState<Medicamento[]>([
-    { id: '1', nome: 'Losartana', dose: '1 comp', horario: '08:00', dias: ['Seg', 'Ter'], dependenteId: 'dep-1' }
-  ]);
+  
+  // os estados agora começam totalmente vazios
+  const [dependentes, setDependentes] = useState<Dependente[]>([]);
+  const [medications, setMedications] = useState<Medicamento[]>([]);
 
-  // Função de Login Real com Banco de Dados
+  // Login integrado ao banco de dados
   const login = async (email: string, senhaDigitada: string) => {
     try {
       const response = await api.post('/login', { email, senha: senhaDigitada });
       const userData = response.data;
       
       setUser({ 
-        id: userData.id,
+        id: String(userData.id),
         nome: userData.nome,
         email: userData.email, 
         role: userData.role 
@@ -53,13 +50,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const logout = () => setUser(null);
+  const logout = () => {
+    setUser(null);
+    // Limpa os dados em memória ao deslogar
+    setDependentes([]);
+    setMedications([]);
+  };
 
-  // Função de Cadastro Real com Banco de Dados
+  // Cadastro integrado ao banco de dados
   const signUp = async (email: string, senha: string, nome: string) => {
     try {
       await api.post('/signup', { nome, email, senha });
-      // Se cadastrou com sucesso, já loga automaticamente
       await login(email, senha); 
     } catch (error: any) {
       const mensagemErro = error.response?.data?.message || 'Erro de conexão. Verifique se o servidor está rodando.';
@@ -67,12 +68,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
-  const addDependente = (nome: string) => setDependentes((prev) => [...prev, { id: Math.random().toString(), nome }]);
-  const addMedication = (med: Medicamento) => setMedications((prev) => [...prev, med]);
+  // Mantendo o CRUD em memória
+  const addDependente = (nome: string) => {
+    setDependentes((prev) => [...prev, { id: Math.random().toString(), nome }]);
+  };
+
+  const addMedication = (med: Medicamento) => {
+    setMedications((prev) => [...prev, med]);
+  };
   
   const updateMedication = (updatedMed: Medicamento) => {
     setMedications((prev) => prev.map(m => m.id === updatedMed.id ? updatedMed : m));
   };
+
   const deleteMedication = (id: string) => {
     setMedications((prev) => prev.filter(m => m.id !== id));
   };
