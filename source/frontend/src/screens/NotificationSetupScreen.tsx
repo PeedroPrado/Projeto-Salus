@@ -20,13 +20,13 @@ export default function NotificationSetupScreen({ navigation }: Props) {
       <View style={styles.buttonContainer}>
         <CustomButton 
           title="Ativar Notificações" 
-          onPress={() => navigation.navigate('Search')}
+          onPress={() => navigation.navigate('Home')}
           style={{ marginBottom: theme.spacing.m }}
         />
         <CustomButton 
           title="Não, vou correr o risco" 
           variant="secondary"
-          onPress={() => navigation.navigate('Search')}
+          onPress={() => navigation.navigate('Home')}
         />
       </View>
     </SafeAreaView>
