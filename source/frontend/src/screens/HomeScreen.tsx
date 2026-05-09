@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, FlatList } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, FlatList, ActivityIndicator } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,7 +10,16 @@ import CustomButton from '../components/CustomButton';
 type Props = { navigation: NativeStackNavigationProp<RootStackParamList, 'Home'> };
 
 export default function HomeScreen({ navigation }: Props) {
-  const { user, logout, dependentes, medications } = useAuth();
+  const { user, logout, dependentes, medications, loadMedications } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Dependente carrega sua própria rotina ao entrar na Home
+    if (user?.role === 'dependente' && user?.id) {
+      setLoading(true);
+      loadMedications(String(user.id)).finally(() => setLoading(false));
+    }
+  }, [user?.id]);
 
   const handleLogout = () => {
     logout();
@@ -27,8 +36,8 @@ export default function HomeScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <CustomButton 
-          title="Adicionar Novo Dependente" 
+        <CustomButton
+          title="Adicionar Novo Dependente"
           variant="secondary"
           icon={<Feather name="plus-circle" size={20} color={theme.colors.white} style={{ marginRight: 8 }} />}
           onPress={() => navigation.navigate('DependentSignUp')}
@@ -39,8 +48,8 @@ export default function HomeScreen({ navigation }: Props) {
           data={dependentes}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TouchableOpacity 
-              style={styles.card} 
+            <TouchableOpacity
+              style={styles.card}
               onPress={() => navigation.navigate('DependentDashboard', { dependenteId: item.id, dependenteNome: item.nome })}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -58,6 +67,9 @@ export default function HomeScreen({ navigation }: Props) {
     );
   }
 
+  // View do dependente
+  const minhosRemédios = medications.filter(m => String(m.dependenteId) === String(user?.id));
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -66,21 +78,26 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.logoutText}>Sair</Text>
         </TouchableOpacity>
       </View>
-      
-      <FlatList
-        data={medications.filter(m => m.dependenteId === user?.dependenteId)}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.medCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
-              <Feather name="info" size={18} color={theme.colors.textPrimary} style={{ marginRight: 8 }} />
-              <Text style={styles.medName}>{item.nome}</Text>
+
+      {loading ? (
+        <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 40 }} />
+      ) : (
+        <FlatList
+          data={minhosRemédios}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.medCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+                <Feather name="info" size={18} color={theme.colors.textPrimary} style={{ marginRight: 8 }} />
+                <Text style={styles.medName}>{item.nome}</Text>
+              </View>
+              <Text style={styles.medDose}>{item.dose} • {item.horario}</Text>
+              <Text style={styles.medDays}>{item.dias.join(', ')}</Text>
             </View>
-            <Text style={styles.medDose}>{item.dose} • {item.horario}</Text>
-            <Text style={styles.medDays}>{item.dias.join(', ')}</Text>
-          </View>
-        )}
-      />
+          )}
+          ListEmptyComponent={<Text style={styles.emptyText}>Nenhum medicamento cadastrado.</Text>}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -97,5 +114,6 @@ const styles = StyleSheet.create({
   medCard: { backgroundColor: theme.colors.card, borderRadius: theme.borderRadius.m, padding: 15, marginBottom: 10 },
   medName: { fontSize: 16, fontWeight: 'bold', color: theme.colors.textPrimary },
   medDose: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 2 },
-  medDays: { fontSize: 12, color: theme.colors.secondary, marginTop: 2, fontWeight: 'bold' }
+  medDays: { fontSize: 12, color: theme.colors.secondary, marginTop: 2, fontWeight: 'bold' },
+  emptyText: { textAlign: 'center', marginTop: 30, color: theme.colors.textSecondary, fontSize: 16 },
 });

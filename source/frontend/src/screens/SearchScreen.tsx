@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,11 +13,12 @@ const DIAS_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 export default function SearchScreen({ route, navigation }: Props) {
   const { dependenteId, medicamento } = route.params || {};
   const { addMedication, updateMedication } = useAuth();
-  
+
   const [nome, setNome] = useState('');
   const [dose, setDose] = useState('');
   const [horario, setHorario] = useState('');
   const [diasSelecionados, setDiasSelecionados] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (medicamento) {
@@ -45,22 +46,31 @@ export default function SearchScreen({ route, navigation }: Props) {
     setHorario(formatado);
   };
 
-  const salvarMedicamento = () => {
+  const salvarMedicamento = async () => {
     if (!nome || !horario || diasSelecionados.length === 0) return;
-    
+
     const dadosMedicamento = {
       id: medicamento ? medicamento.id : Math.random().toString(),
       nome,
       dose: dose || '1 comprimido',
       horario,
       dias: diasSelecionados,
-      dependenteId: dependenteId || medicamento?.dependenteId
+      dependenteId: dependenteId || medicamento?.dependenteId,
     };
 
-    if (medicamento) updateMedication(dadosMedicamento);
-    else addMedication(dadosMedicamento);
-    
-    navigation.goBack();
+    setSaving(true);
+    try {
+      if (medicamento) {
+        updateMedication(dadosMedicamento);
+      } else {
+        await addMedication(dadosMedicamento);
+      }
+      navigation.goBack();
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Não foi possível salvar o medicamento.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const isFormInvalid = !nome || !horario || diasSelecionados.length === 0;
@@ -87,8 +97,8 @@ export default function SearchScreen({ route, navigation }: Props) {
         <Text style={styles.label}>Dias da Semana</Text>
         <View style={styles.daysContainer}>
           {DIAS_SEMANA.map((dia) => (
-            <TouchableOpacity 
-              key={dia} 
+            <TouchableOpacity
+              key={dia}
               style={[styles.dayCircle, diasSelecionados.includes(dia) && styles.dayCircleActive]}
               onPress={() => toggleDia(dia)}
             >
@@ -97,13 +107,17 @@ export default function SearchScreen({ route, navigation }: Props) {
           ))}
         </View>
 
-        <CustomButton 
-          title={medicamento ? 'Atualizar Rotina' : 'Salvar na Rotina'} 
-          variant="secondary"
-          onPress={salvarMedicamento}
-          disabled={isFormInvalid}
-          style={isFormInvalid ? { backgroundColor: theme.colors.card } : {}}
-        />
+        {saving ? (
+          <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 10 }} />
+        ) : (
+          <CustomButton
+            title={medicamento ? 'Atualizar Rotina' : 'Salvar na Rotina'}
+            variant="secondary"
+            onPress={salvarMedicamento}
+            disabled={isFormInvalid}
+            style={isFormInvalid ? { backgroundColor: theme.colors.card } : {}}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -121,5 +135,5 @@ const styles = StyleSheet.create({
   dayCircle: { width: 45, height: 45, borderRadius: 22.5, backgroundColor: theme.colors.grayLight, justifyContent: 'center', alignItems: 'center' },
   dayCircleActive: { backgroundColor: theme.colors.primary },
   dayText: { color: theme.colors.textSecondary, fontSize: 14, fontWeight: '500' },
-  dayTextActive: { color: theme.colors.white, fontWeight: 'bold' }
+  dayTextActive: { color: theme.colors.white, fontWeight: 'bold' },
 });

@@ -13,7 +13,7 @@ export const createDatabaseIfNotExists = async () => {
   try {
     // Extrai o nome do banco alvo da URL (ex: medsalus_db)
     const url = new URL(dbUrl);
-    const targetDb = url.pathname.replace('/', ''); 
+    const targetDb = url.pathname.replace('/', '');
 
     // Troca temporariamente para o banco padrão 'postgres' para conseguir conectar
     url.pathname = '/postgres';
@@ -44,21 +44,37 @@ export const createDatabaseIfNotExists = async () => {
 
 // 2. Função para criar a Tabela se não existir
 export const initDb = async () => {
-  const query = `
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       nome VARCHAR(100) NOT NULL,
       email VARCHAR(100) UNIQUE NOT NULL,
-      senha VARCHAR(100) NOT NULL,
+      senha VARCHAR(255) NOT NULL,
       role VARCHAR(50) DEFAULT 'responsavel',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
-  `;
-  try {
-    await pool.query(query);
-    console.log('Tabela "users" verificada/criada com sucesso!');
-  } catch (err) {
-    console.error('Erro ao verificar/criar tabela:', err);
-    throw err;
-  }
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dependentes (
+      id             SERIAL PRIMARY KEY,
+      responsavel_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      dependente_id  INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(responsavel_id, dependente_id)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS medicamentos (
+      id            SERIAL PRIMARY KEY,
+      dependente_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      nome          VARCHAR(100) NOT NULL,
+      dose          VARCHAR(100) NOT NULL,
+      horario       VARCHAR(50)  NOT NULL,
+      dias          TEXT NOT NULL,
+      created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  console.log('Tabelas verificadas/criadas com sucesso!');
 };
