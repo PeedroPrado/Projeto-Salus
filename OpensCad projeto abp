@@ -1,78 +1,77 @@
-// --- CONFIGURAÇÕES GERAIS ---
-$fn = 100;
+// --- PARÂMETROS GERAIS ---
+$fn = 60;
 d_ext = 207; 
-d_int = 70;  
 h_carrossel = 50;
 h_base = 35; 
-esp = 3; 
-folga = 1.5;
 
 // --- CONTROLE DE VISUALIZAÇÃO ---
-// Mude para "true" para ver montado ou "false" para ver as peças separadas na mesa
-modo_montagem = false; 
+// Mude para "true" para ver a animação funcionando
+// Mude para "false" para ver as peças separadas para exportar STL
+modo_animacao = true; 
 
-if (modo_montagem) {
-    // VISUALIZAÇÃO EXPLODIDA (Para ver como se encaixam)
-    translate([0, 0, 0]) base_fixa();
-    translate([70, 0, 5]) gaveta(); // Gaveta levemente aberta
-    translate([0, 0, 20]) carrossel();
-    translate([0, 0, 80]) tampa();
+// --- LÓGICA DE MOVIMENTO ---
+angulo_carrossel = modo_animacao ? $t * 360 : 0; 
+posicao_ejetor = modo_animacao ? abs(sin($t * 360 * 12 / 2)) * 90 : 0; 
+
+// --- MONTAGEM PRINCIPAL ---
+if (modo_animacao) {
+    // VISUALIZAÇÃO DO SISTEMA EM FUNCIONAMENTO
+    base_fixa();
+    
+    rotate([0, 0, angulo_carrossel]) 
+        carrossel_12();
+
+    // Braço Ejetor sincronizado
+    translate([d_ext/2 - 5, 0, h_base + 10]) 
+        rotate([0, 0, posicao_ejetor]) 
+            braco_ejetor();
+
+    translate([115, 0, 12]) gaveta();
+
+    translate([0, 0, h_base + h_carrossel - 10])
+        tampa();
 } else {
-    // VISUALIZAÇÃO PARA EXPORTAR (Peças lado a lado)
-    translate([0, 0, 0]) carrossel();
+    // VISUALIZAÇÃO PARA EXPORTAR PEÇAS (Lado a lado)
+    translate([0, 0, 0]) carrossel_12();
     translate([d_ext + 50, 0, 0]) base_fixa();
     translate([d_ext + 50, d_ext, 0]) tampa();
     translate([0, d_ext, 10]) gaveta();
 }
 
-// --- MÓDULOS (CÓDIGOS DAS PEÇAS) ---
+// --- MÓDULOS (PEÇAS) ---
 
-module carrossel() {
-    color("cyan") union() {
+module carrossel_12() {
+    color("cyan", 0.8) union() {
         difference() {
             cylinder(h=h_carrossel, d=d_ext);
             translate([0,0,-1]) cylinder(h=h_carrossel+2, d=d_ext-4);
         }
-        difference() {
-            cylinder(h=h_carrossel, d=d_int);
-            translate([0,0,-1]) intersection() {
-                cylinder(h=h_carrossel+2, d=5.5); 
-                cube([5.5, 3.5, h_carrossel+2], center=true); 
-            }
-        }
         for (i = [0 : 11]) {
             rotate([0, 0, i * 30])
-                translate([d_int/2, -1, 0])
-                    cube([(d_ext-d_int)/2, 2, h_carrossel]);
+                translate([35, -1, 0]) cube([68.5, 2, h_carrossel]);
         }
     }
 }
 
 module base_fixa() {
     color("yellow") difference() {
-        cylinder(h = h_base, d = d_ext + esp*2 + folga);
-        translate([0, 0, h_base - 15]) cylinder(h = 20, d = d_ext + folga);
-        translate([d_ext/2 - 35, -30, -1]) cube([70, 60, h_base - 10]); 
-        rotate([0, 0, -15]) translate([35, -25, h_base - 18]) 
-            rotate([0, 20, 0]) cube([d_ext/2 + 10, 50, 40]);
-        cylinder(h = 40, d = 10, center = true);
+        cylinder(h = h_base, d = d_ext + 10);
+        translate([0, 0, h_base - 15]) cylinder(h = 20, d = d_ext + 2);
+        translate([d_ext/2 - 40, -25, -1]) cube([50, 50, h_base + 10]); 
     }
+}
+
+module braco_ejetor() {
+    color("red") cube([10, 40, 2]); 
 }
 
 module gaveta() {
-    color("orange") union() {
-        difference() {
-            cube([65, 55, h_base - 15], center=true);
-            translate([0, 0, 2.5]) cube([60, 50, h_base], center=true);
-        }
-        translate([32.5, -15, - (h_base - 15)/2]) cube([12, 30, h_base - 15]);
-    }
+    color("orange") cube([60, 50, 25], center=true);
 }
 
 module tampa() {
-    color("white", 0.5) // Transparente para ver dentro
-    difference() {
-        cylinder(h=8, d=d_ext + esp*4);
-        translate([0,0,-1]) cylinder(h=6, d=d_ext + esp*2 + 1.5);
+    color("white", 0.4) difference() {
+        cylinder(h=8, d=d_ext + 12);
+        translate([0,0,-1]) cylinder(h=6, d=d_ext + 8);
     }
 }
