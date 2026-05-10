@@ -23,17 +23,22 @@ export default function DependentDashboardScreen({ route, navigation }: Props) {
 
   const rotinaDependente = medications.filter(med => String(med.dependenteId) === depId);
 
-  const handleDelete = (id: string, nome: string) => {
-    Alert.alert('Excluir Medicamento', `Deseja remover ${nome}?`, [
-      { text: 'Cancelar', style: 'cancel' },
-     { text: 'Excluir', style: 'destructive', onPress: async () => { console.log("CLICOU EXCLUIR"); try { await deleteMedication(id); await loadMedications(depId);  console.log("MEDICAMENTO EXCLUIDO");  } catch (error) { console.log(error);
+ const handleDelete = async (id: string, nome: string) => {
 
-      }
+
+  try {
+
+    await deleteMedication(id);
+
+
+
+  } catch (error) {
+
+    console.log("ERRO DELETE:", error);
 
   }
-}
-    ]);
-  };
+
+};
 
   return (
     <SafeAreaView style={styles.container}>
@@ -74,7 +79,7 @@ export default function DependentDashboardScreen({ route, navigation }: Props) {
                   <Feather name="edit-2" size={16} color={theme.colors.textPrimary} style={{ marginRight: 4 }} />
                   <Text style={styles.editText}>Editar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id, item.nome)}>
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => { handleDelete(item.id, item.nome); }}>
                   <Feather name="trash-2" size={16} color={theme.colors.danger} style={{ marginRight: 4 }} />
                   <Text style={styles.deleteText}>Excluir</Text>
                 </TouchableOpacity>

@@ -15,7 +15,7 @@ type AuthContextData = {
   signUp: (email: string, senha: string, nome: string) => Promise<void>;
   addDependente: (dependente: { nome: string; email: string; senha: string }) => Promise<void>;
   addMedication: (med: Omit<Medicamento, 'id'> & { dependenteId: string }) => Promise<void>;
-  updateMedication: (med: Medicamento) => void;
+  updateMedication: (med: Medicamento) => Promise<void>;
   deleteMedication: (id: string) => Promise<void>;
   loadMedications: (dependenteId: string) => Promise<void>;
 };
@@ -47,7 +47,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, senhaDigitada: string) => {
     try {
-      console.log("LOGIN REALIZADO");
       const response = await api.post('/login', { email, senha: senhaDigitada });
       const { token: jwtToken, user: userData } = response.data;
       saveToken(jwtToken);
@@ -145,8 +144,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateMedication = (updatedMed: Medicamento) =>
-    setMedications((prev) => prev.map((m) => (m.id === updatedMed.id ? updatedMed : m)));
+  const updateMedication = async (updatedMed: Medicamento) => {
+  try {  const response = await api.put( `/medicamentos/${updatedMed.id}`,
+      {
+        nome: updatedMed.nome,
+        dose: updatedMed.dose,
+        horario: updatedMed.horario,
+        dias: updatedMed.dias,
+      },
+      {
+        headers: authHeader(),
+      }
+     );
+
+    setMedications((prev) =>
+      prev.map((m) =>
+        m.id === updatedMed.id
+          ? {
+              ...m,
+              ...response.data,
+            }
+          : m
+      )
+    );
+
+  } catch (error: any) {
+
+    throw new Error(
+      error.response?.data?.message ||
+      'Erro ao atualizar medicamento.'
+    );
+
+  }
+};
 
   const deleteMedication = async (id: string) => {
     try {

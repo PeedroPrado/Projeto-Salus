@@ -64,7 +64,7 @@ export default function SearchScreen({ route, navigation }: Props) {
     setSaving(true);
     try {
       if (medicamento) {
-        updateMedication(dadosMedicamento);
+        await updateMedication(dadosMedicamento);
       } else {
         await addMedication(dadosMedicamento);
       }
