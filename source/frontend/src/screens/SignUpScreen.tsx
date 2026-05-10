@@ -42,17 +42,24 @@ export default function SignUpScreen({ navigation }: Props) {
     }
 
     // Validação de força da Senha
-    const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
-    if (!passwordRegex.test(senha)) {
-      setSenhaError('Mínimo de 8 caracteres, 1 maiúscula e 1 especial.');
-      isValid = false;
-    }
+const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
 
-    // Validação se as senhas coincidem
-    if (senha !== confirmarSenha) {
-      setConfirmarSenhaError('As senhas não coincidem.');
-      isValid = false;
-    }
+if (!passwordRegex.test(senha)) {
+
+  setSenhaError('Mínimo de 8 caracteres, 1 maiúscula e 1 especial.');
+
+  isValid = false;
+
+}
+
+// Validação se as senhas coincidem
+if (senha.trim() !== confirmarSenha.trim()) {
+
+  setConfirmarSenhaError('As senhas não coincidem.');
+
+  isValid = false;
+
+}
 
     // Se alguma validação falhou, interrompe o cadastro
     if (!isValid) return;
@@ -96,22 +103,26 @@ export default function SignUpScreen({ navigation }: Props) {
         {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
         
         <Text style={styles.label}>Crie uma Senha</Text>
-        <TextInput 
-          style={[styles.input, senhaError ? styles.inputError : null]} 
-          placeholder="Crie uma senha" 
-          value={senha} 
-          onChangeText={(text) => { setSenha(text); setSenhaError(''); }} 
-          secureTextEntry 
+        <TextInput
+          style={[styles.input, senhaError ? styles.inputError : null]}
+          placeholder="Crie uma senha"
+          value={senha}
+          onChangeText={(text) => { setSenha(text); setSenhaError(''); }}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
         />
         {senhaError ? <Text style={styles.errorText}>{senhaError}</Text> : null}
         
         <Text style={styles.label}>Confirme a Senha</Text>
-        <TextInput 
-          style={[styles.input, confirmarSenhaError ? styles.inputError : null]} 
-          placeholder="Confirme a senha" 
-          value={confirmarSenha} 
-          onChangeText={(text) => { setConfirmarSenha(text); setConfirmarSenhaError(''); }} 
-          secureTextEntry 
+        <TextInput
+          style={[styles.input, confirmarSenhaError ? styles.inputError : null]}
+          placeholder="Confirme a senha"
+          value={confirmarSenha}
+          onChangeText={(text) => { setConfirmarSenha(text); setConfirmarSenhaError(''); }}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
         />
         {confirmarSenhaError ? <Text style={styles.errorText}>{confirmarSenhaError}</Text> : null}
       </View>

@@ -3,7 +3,7 @@ import axios from 'axios';
 
 export type User = { id?: string; email: string; nome?: string; role: 'responsavel' | 'dependente' };
 export type Dependente = { id: string; nome: string; email: string };
-export type Medicamento = { id: string; nome: string; dose: string; horario: string; dias: string[]; dependenteId?: string };
+export type Medicamento = { id: string; nome: string; dose: string; horario: string; dias: string[]; compartimento: number; dependenteId?: string };
 
 type AuthContextData = {
   user: User | null;
@@ -123,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           dose: med.dose,
           horario: med.horario,
           dias: med.dias,
+          compartimento: med.compartimento, 
         },
         { headers: authHeader() }
       );
@@ -134,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           dose: response.data.dose,
           horario: response.data.horario,
           dias: parseDias(response.data.dias),
+          compartimento: response.data.compartimento,
           dependenteId: String(response.data.dependente_id),
         },
       ]);
@@ -148,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const deleteMedication = async (id: string) => {
     try {
       await api.delete(`/medicamentos/${id}`, { headers: authHeader() });
-      setMedications((prev) => prev.filter((m) => m.id !== id));
+      setMedications((prev) => prev.filter((m) => String(m.id) !== String(id)));
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erro ao remover medicamento.');
     }

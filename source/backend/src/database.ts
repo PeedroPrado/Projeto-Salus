@@ -44,37 +44,89 @@ export const createDatabaseIfNotExists = async () => {
 
 // 2. Função para criar a Tabela se não existir
 export const initDb = async () => {
+
+  // ======================================
+  // USERS
+  // ======================================
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
+
       id SERIAL PRIMARY KEY,
+
       nome VARCHAR(100) NOT NULL,
+
       email VARCHAR(100) UNIQUE NOT NULL,
+
       senha VARCHAR(255) NOT NULL,
+
       role VARCHAR(50) DEFAULT 'responsavel',
+
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
     );
   `);
 
+  // ======================================
+  // DEPENDENTES
+  // ======================================
   await pool.query(`
     CREATE TABLE IF NOT EXISTS dependentes (
-      id             SERIAL PRIMARY KEY,
+
+      id SERIAL PRIMARY KEY,
+
       responsavel_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      dependente_id  INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+      dependente_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
       UNIQUE(responsavel_id, dependente_id)
+
     );
   `);
 
+  // ======================================
+  // MEDICAMENTOS
+  // ======================================
   await pool.query(`
     CREATE TABLE IF NOT EXISTS medicamentos (
-      id            SERIAL PRIMARY KEY,
+
+      id SERIAL PRIMARY KEY,
+
       dependente_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      nome          VARCHAR(100) NOT NULL,
-      dose          VARCHAR(100) NOT NULL,
-      horario       VARCHAR(50)  NOT NULL,
-      dias          TEXT NOT NULL,
-      created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+      nome VARCHAR(100) NOT NULL,
+
+      dose VARCHAR(100) NOT NULL,
+
+      horario VARCHAR(50) NOT NULL,
+
+      dias TEXT NOT NULL,
+
+      compartimento INTEGER NOT NULL,
+
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
     );
+  `);
+
+  // ======================================
+  // EVENTOS IOT
+  // ======================================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS eventos_iot (
+
+    id SERIAL PRIMARY KEY,
+
+    medicamento_id INT REFERENCES medicamentos(id) ON DELETE SET NULL,
+
+    compartimento INTEGER NOT NULL,
+
+    status VARCHAR(50) NOT NULL,
+
+    horario TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+);
   `);
 
   console.log('Tabelas verificadas/criadas com sucesso!');
+
 };

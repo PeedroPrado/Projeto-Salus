@@ -26,7 +26,12 @@ export default function DependentDashboardScreen({ route, navigation }: Props) {
   const handleDelete = (id: string, nome: string) => {
     Alert.alert('Excluir Medicamento', `Deseja remover ${nome}?`, [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Excluir', style: 'destructive', onPress: () => deleteMedication(id) }
+     { text: 'Excluir', style: 'destructive', onPress: async () => { console.log("CLICOU EXCLUIR"); try { await deleteMedication(id); await loadMedications(depId);  console.log("MEDICAMENTO EXCLUIDO");  } catch (error) { console.log(error);
+
+      }
+
+  }
+}
     ]);
   };
 

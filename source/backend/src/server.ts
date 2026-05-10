@@ -160,7 +160,7 @@ app.get('/api/dependentes', authMiddleware, async (req: any, res) => {
 
 // Adicionar medicamento a um dependente
 app.post('/api/medicamentos', authMiddleware, async (req: any, res) => {
-  const { dependente_id, nome, dose, horario, dias } = req.body;
+  const { dependente_id, nome, dose, horario, dias, compartimento } = req.body;
 
   if (!dependente_id || !nome || !dose || !horario || !dias) {
     return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
@@ -168,10 +168,10 @@ app.post('/api/medicamentos', authMiddleware, async (req: any, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO medicamentos (dependente_id, nome, dose, horario, dias)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO medicamentos (dependente_id, nome, dose, horario, dias, compartimento)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [dependente_id, nome, dose, horario, JSON.stringify(dias)]
+      [dependente_id, nome, dose, horario, JSON.stringify(dias), compartimento]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -234,14 +234,123 @@ app.delete('/api/medicamentos/:id', authMiddleware, async (req: any, res) => {
   }
 });
 
+//Rota de IoT Eventos
+
+app.post("/iot/evento", async (req, res) => {
+
+  try {
+
+    const {
+      medicamento_id,
+      compartimento,
+      status
+    } = req.body;
+
+    if (!compartimento || !status) {
+
+      return res.status(400).json({
+        erro: "Dados incompletos"
+      });
+
+    }
+
+    await pool.query(
+
+      `
+      INSERT INTO eventos_iot
+      (
+        medicamento_id,
+        compartimento,
+        status
+      )
+      VALUES
+      (
+        $1,
+        $2,
+        $3
+      )
+      `,
+
+      [
+        medicamento_id,
+        compartimento,
+        status
+      ]
+
+    );
+
+    console.log("Evento IoT recebido:");
+
+    console.log(req.body);
+
+    res.status(200).json({
+      sucesso: true
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      erro: "Erro ao salvar evento"
+    });
+
+  }
+
+});
+
+// ======================================
+// PROXIMO MEDICAMENTO
+// ======================================
+app.get("/iot/proximo-medicamento", async (req, res) => {
+
+  try {
+
+    const resultado = await pool.query(`
+
+     SELECT
+  id,
+  nome,
+  horario,
+  compartimento
+FROM medicamentos
+WHERE horario = TO_CHAR(NOW(), 'HH24:MI')
+LIMIT 1
+
+    `);
+
+    // nenhum medicamento
+    if (resultado.rows.length === 0) {
+
+      return res.status(404).json({
+        erro: "Nenhum medicamento encontrado"
+      });
+
+    }
+
+    res.status(200).json(resultado.rows[0]);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      erro: "Erro ao buscar medicamento"
+    });
+
+  }
+
+});
+
 // ─── Inicialização do Servidor ────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 const startServer = async () => {
   try {
     await createDatabaseIfNotExists();
     await initDb();
-    app.listen(PORT, () => {
+    
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);
     });
   } catch (error) {
