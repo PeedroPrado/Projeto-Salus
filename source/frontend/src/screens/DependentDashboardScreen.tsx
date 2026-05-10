@@ -23,22 +23,7 @@ export default function DependentDashboardScreen({ route, navigation }: Props) {
 
   const rotinaDependente = medications.filter(med => String(med.dependenteId) === depId);
 
- const handleDelete = async (id: string, nome: string) => {
-
-
-  try {
-
-    await deleteMedication(id);
-
-
-
-  } catch (error) {
-
-    console.log("ERRO DELETE:", error);
-
-  }
-
-};
+ const handleDelete = async (id: string, nome: string) => { try { await deleteMedication(id);  } catch (error) { console.log("ERRO DELETE:", error); } };
 
   return (
     <SafeAreaView style={styles.container}>
