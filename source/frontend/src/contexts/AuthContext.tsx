@@ -47,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, senhaDigitada: string) => {
     try {
+      console.log("LOGIN REALIZADO");
       const response = await api.post('/login', { email, senha: senhaDigitada });
       const { token: jwtToken, user: userData } = response.data;
       saveToken(jwtToken);
