@@ -3,11 +3,16 @@ name: Backend CI
 on:
   push:
     branches:
+      - dev
       - main
 
 jobs:
   backend:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: source/backend
 
     steps:
       - uses: actions/checkout@v4
@@ -16,13 +21,15 @@ jobs:
         with:
           node-version: 22
 
-      - run: npm install
+      - name: Install dependencies
+        run: npm install
 
-      - name: Criar .env
+      - name: Create .env
         run: |
           echo "PORT=${{ secrets.PORT }}" >> .env
           echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "IP=${{ secrets.IP }}" >> .env
 
-      - run: npm run build
+      - name: Build
+        run: npm run build
