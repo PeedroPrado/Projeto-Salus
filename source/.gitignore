@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+
+# env
+.env
+.env.local
+.env.development.local
+.env.production.local
+
+# expo
+.expo/
+dist/
+web-build/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# typescript
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# vscode
+.vscode/
+
+# build
+build/
+coverage/
+
+frontend/node_modules
+backend/node_modules
+frontend/.env
+backend/.env

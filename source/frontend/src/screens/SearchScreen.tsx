@@ -17,6 +17,7 @@ export default function SearchScreen({ route, navigation }: Props) {
   const [nome, setNome] = useState('');
   const [dose, setDose] = useState('');
   const [horario, setHorario] = useState('');
+  const [compartimento, setCompartimento] = useState('');
   const [diasSelecionados, setDiasSelecionados] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -24,6 +25,7 @@ export default function SearchScreen({ route, navigation }: Props) {
     if (medicamento) {
       setNome(medicamento.nome);
       setDose(medicamento.dose);
+      setCompartimento(String(medicamento.compartimento));
       setHorario(medicamento.horario);
       setDiasSelecionados(medicamento.dias);
     }
@@ -54,14 +56,15 @@ export default function SearchScreen({ route, navigation }: Props) {
       nome,
       dose: dose || '1 comprimido',
       horario,
+      compartimento: Number(compartimento),
       dias: diasSelecionados,
-      dependenteId: dependenteId || medicamento?.dependenteId,
+      dependenteId: String(dependenteId || medicamento?.dependenteId),
     };
 
     setSaving(true);
     try {
       if (medicamento) {
-        updateMedication(dadosMedicamento);
+        await updateMedication(dadosMedicamento);
       } else {
         await addMedication(dadosMedicamento);
       }
@@ -73,7 +76,7 @@ export default function SearchScreen({ route, navigation }: Props) {
     }
   };
 
-  const isFormInvalid = !nome || !horario || diasSelecionados.length === 0;
+  const isFormInvalid = !nome || !horario || !compartimento || diasSelecionados.length === 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -94,6 +97,8 @@ export default function SearchScreen({ route, navigation }: Props) {
         <Text style={styles.label}>Horário (HH:MM)</Text>
         <TextInput style={styles.input} placeholder="Ex: 08:00" value={horario} onChangeText={formatarHorario} keyboardType="numeric" maxLength={5} />
 
+        <Text style={styles.label}>Compartimento</Text>
+        <TextInput style={styles.input} placeholder="Ex: 1" value={compartimento} onChangeText={setCompartimento} keyboardType="numeric"/>
         <Text style={styles.label}>Dias da Semana</Text>
         <View style={styles.daysContainer}>
           {DIAS_SEMANA.map((dia) => (

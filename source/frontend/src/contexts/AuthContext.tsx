@@ -3,7 +3,7 @@ import axios from 'axios';
 
 export type User = { id?: string; email: string; nome?: string; role: 'responsavel' | 'dependente' };
 export type Dependente = { id: string; nome: string; email: string };
-export type Medicamento = { id: string; nome: string; dose: string; horario: string; dias: string[]; dependenteId?: string };
+export type Medicamento = { id: string; nome: string; dose: string; horario: string; dias: string[]; compartimento: number; dependenteId?: string };
 
 type AuthContextData = {
   user: User | null;
@@ -14,15 +14,19 @@ type AuthContextData = {
   logout: () => void;
   signUp: (email: string, senha: string, nome: string) => Promise<void>;
   addDependente: (dependente: { nome: string; email: string; senha: string }) => Promise<void>;
+  updateDependente: (id: string, dados: { nome: string; email: string }) => Promise<void>;
+  deleteDependente: (id: string) => Promise<void>;
   addMedication: (med: Omit<Medicamento, 'id'> & { dependenteId: string }) => Promise<void>;
-  updateMedication: (med: Medicamento) => void;
+  updateMedication: (med: Medicamento) => Promise<void>;
   deleteMedication: (id: string) => Promise<void>;
   loadMedications: (dependenteId: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
-const api = axios.create({ baseURL: 'http://localhost:3000/api' });
+const api = axios.create({
+  baseURL: process.env.EXPO_PUBLIC_API_URL,
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -38,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const authHeader = () => ({ Authorization: `Bearer ${tokenRef.current}` });
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // Auth
 
   const loadDependentes = async () => {
     const response = await api.get('/dependentes', { headers: authHeader() });
@@ -80,6 +84,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Dependentes
+
   const addDependente = async (dependente: { nome: string; email: string; senha: string }) => {
     try {
       const response = await api.post('/dependentes', dependente, { headers: authHeader() });
@@ -89,7 +95,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // ── Medicamentos ─────────────────────────────────────────────────────────────
+  const updateDependente = async (id: string, dados: { nome: string; email: string }) => {
+    try {
+      const response = await api.put(`/dependentes/${id}`, dados, { headers: authHeader() });
+      setDependentes((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, ...response.data } : d))
+      );
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erro ao editar dependente.');
+    }
+  };
+
+  const deleteDependente = async (id: string) => {
+    console.log('AuthContext.deleteDependente chamado, id:', id);
+    console.log('token atual:', tokenRef.current ? 'presente' : 'AUSENTE');
+    try {
+      const url = `/dependentes/${id}`;
+      console.log('fazendo DELETE para:', url);
+      const response = await api.delete(url, { headers: authHeader() });
+      console.log('resposta do servidor:', response.status, response.data);
+      setDependentes((prev) => prev.filter((d) => d.id !== id));
+      setMedications((prev) => prev.filter((m) => m.dependenteId !== id));
+    } catch (error: any) {
+      console.log('ERRO na requisicao:', error.response?.status, error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Erro ao remover dependente.');
+    }
+  };
+
+  // Medicamentos
 
   const parseDias = (dias: any): string[] =>
     Array.isArray(dias) ? dias : JSON.parse(dias);
@@ -123,6 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           dose: med.dose,
           horario: med.horario,
           dias: med.dias,
+          compartimento: med.compartimento,
         },
         { headers: authHeader() }
       );
@@ -134,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           dose: response.data.dose,
           horario: response.data.horario,
           dias: parseDias(response.data.dias),
+          compartimento: response.data.compartimento,
           dependenteId: String(response.data.dependente_id),
         },
       ]);
@@ -142,13 +177,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateMedication = (updatedMed: Medicamento) =>
-    setMedications((prev) => prev.map((m) => (m.id === updatedMed.id ? updatedMed : m)));
+  const updateMedication = async (updatedMed: Medicamento) => {
+    try {
+      const response = await api.put(
+        `/medicamentos/${updatedMed.id}`,
+        {
+          nome: updatedMed.nome,
+          dose: updatedMed.dose,
+          horario: updatedMed.horario,
+          dias: updatedMed.dias,
+        },
+        { headers: authHeader() }
+      );
+      setMedications((prev) =>
+        prev.map((m) => (m.id === updatedMed.id ? { ...m, ...response.data } : m))
+      );
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erro ao atualizar medicamento.');
+    }
+  };
 
   const deleteMedication = async (id: string) => {
     try {
       await api.delete(`/medicamentos/${id}`, { headers: authHeader() });
-      setMedications((prev) => prev.filter((m) => m.id !== id));
+      setMedications((prev) => prev.filter((m) => String(m.id) !== String(id)));
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erro ao remover medicamento.');
     }
@@ -158,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{
       user, token, dependentes, medications,
       login, logout, signUp,
-      addDependente,
+      addDependente, updateDependente, deleteDependente,
       addMedication, updateMedication, deleteMedication, loadMedications,
     }}>
       {children}
