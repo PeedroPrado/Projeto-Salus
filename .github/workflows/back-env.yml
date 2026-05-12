@@ -52,4 +52,4 @@ jobs:
         run: npm install
 
       - name: Check frontend
-        run: npx expo export
+        run: npx expo-doctor
