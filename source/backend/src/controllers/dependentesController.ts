@@ -105,7 +105,6 @@ export const updateDependente = async (req: AuthRequest, res: Response) => {
 };
 
 export const deleteDependente = async (req: AuthRequest, res: Response) => {
-  
   if (req.user?.role !== 'responsavel') {
     return res.status(403).json({ message: 'Apenas responsáveis podem excluir dependentes.' });
   }
@@ -115,18 +114,11 @@ export const deleteDependente = async (req: AuthRequest, res: Response) => {
       `SELECT dependente_id FROM dependentes WHERE dependente_id = $1 AND responsavel_id = $2`,
       [req.params.id, req.user.id]
     );
-    
+
     if (vinculo.rows.length === 0) {
       return res.status(403).json({ message: 'Dependente não encontrado ou sem permissão.' });
     }
 
-    // Deleta os medicamentos vinculados a este dependente primeiro
-    await pool.query('DELETE FROM medicamentos WHERE dependente_id = $1', [req.params.id]);
-
-    // deleta o vínculo entre responsável e dependente
-    await pool.query('DELETE FROM dependentes WHERE dependente_id = $1', [req.params.id]);
-    
-    // deleta o usuário
     await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
 
     res.status(200).json({ message: 'Dependente removido com sucesso.' });

@@ -45,6 +45,18 @@ export const updateMedicamento = async (req: AuthRequest, res: Response) => {
   }
 
   try {
+    // Verifica se o medicamento pertence a um dependente do usuário autenticado
+    const propriedade = await pool.query(
+      `SELECT m.id FROM medicamentos m
+       INNER JOIN dependentes d ON d.dependente_id = m.dependente_id
+       WHERE m.id = $1 AND d.responsavel_id = $2`,
+      [req.params.id, req.user?.id]
+    );
+
+    if (propriedade.rows.length === 0) {
+      return res.status(403).json({ message: 'Medicamento não encontrado ou sem permissão.' });
+    }
+
     const result = await pool.query(
       `UPDATE medicamentos
        SET nome = $1, dose = $2, horario = $3, dias = $4
@@ -52,10 +64,6 @@ export const updateMedicamento = async (req: AuthRequest, res: Response) => {
        RETURNING *`,
       [nome, dose, horario, JSON.stringify(dias), req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Medicamento não encontrado.' });
-    }
 
     const m = result.rows[0];
     res.status(200).json({ ...m, dias: JSON.parse(m.dias) });
@@ -67,6 +75,18 @@ export const updateMedicamento = async (req: AuthRequest, res: Response) => {
 
 export const deleteMedicamento = async (req: AuthRequest, res: Response) => {
   try {
+    // Verifica se o medicamento pertence a um dependente do usuário autenticado
+    const propriedade = await pool.query(
+      `SELECT m.id FROM medicamentos m
+       INNER JOIN dependentes d ON d.dependente_id = m.dependente_id
+       WHERE m.id = $1 AND d.responsavel_id = $2`,
+      [req.params.id, req.user?.id]
+    );
+
+    if (propriedade.rows.length === 0) {
+      return res.status(403).json({ message: 'Medicamento não encontrado ou sem permissão.' });
+    }
+
     await pool.query('DELETE FROM medicamentos WHERE id = $1', [req.params.id]);
     res.status(200).json({ message: 'Medicamento removido.' });
   } catch (error) {

@@ -1,9 +1,20 @@
-import React, { createContext, useState, useContext, useRef } from 'react';
-import axios from 'axios';
+import React, { createContext, useState, useContext, useRef, useEffect } from 'react';
+import { create } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type User = { id?: string; email: string; nome?: string; role: 'responsavel' | 'dependente' };
 export type Dependente = { id: string; nome: string; email: string };
 export type Medicamento = { id: string; nome: string; dose: string; horario: string; dias: string[]; compartimento: number; dependenteId?: string };
+
+type MedicamentoAPI = {
+  id: number;
+  nome: string;
+  dose: string;
+  horario: string;
+  dias: unknown;
+  compartimento: number;
+  dependente_id: number;
+};
 
 type AuthContextData = {
   user: User | null;
@@ -24,9 +35,17 @@ type AuthContextData = {
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
-const api = axios.create({
+const api = create({
   baseURL: process.env.EXPO_PUBLIC_API_URL,
 });
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const err = error as { response?: { data?: { message?: string } } };
+    return err.response?.data?.message ?? fallback;
+  }
+  return fallback;
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -39,6 +58,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     tokenRef.current = t;
     setToken(t);
   };
+
+  // Restaura a sessão salva ao abrir o app
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const savedToken = await AsyncStorage.getItem('@medsalus:token');
+        const savedUser = await AsyncStorage.getItem('@medsalus:user');
+        if (savedToken && savedUser) {
+          saveToken(savedToken);
+          const parsedUser: User = JSON.parse(savedUser);
+          setUser(parsedUser);
+          if (parsedUser.role === 'responsavel') {
+            const response = await api.get('/dependentes', { headers: { Authorization: `Bearer ${savedToken}` } });
+            setDependentes(response.data);
+          }
+        }
+      } catch {
+        // Se houver erro ao restaurar, ignora e mantém o usuário deslogado
+      }
+    };
+    restoreSession();
+  }, []);
 
   const authHeader = () => ({ Authorization: `Bearer ${tokenRef.current}` });
 
@@ -54,17 +95,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await api.post('/login', { email, senha: senhaDigitada });
       const { token: jwtToken, user: userData } = response.data;
       saveToken(jwtToken);
-      setUser({
+      const userData2: User = {
         id: String(userData.id),
         nome: userData.nome,
         email: userData.email,
         role: userData.role,
-      });
+      };
+      setUser(userData2);
+      await AsyncStorage.setItem('@medsalus:token', jwtToken);
+      await AsyncStorage.setItem('@medsalus:user', JSON.stringify(userData2));
       if (userData.role === 'responsavel') {
         await loadDependentes();
       }
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erro de conexão. Verifique se o servidor está rodando.');
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Erro de conexão. Verifique se o servidor está rodando.'));
     }
   };
 
@@ -73,14 +117,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setDependentes([]);
     setMedications([]);
+    AsyncStorage.multiRemove(['@medsalus:token', '@medsalus:user']);
   };
 
   const signUp = async (email: string, senha: string, nome: string) => {
     try {
       await api.post('/signup', { nome, email, senha });
       await login(email, senha);
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erro de conexão. Verifique se o servidor está rodando.');
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Erro de conexão. Verifique se o servidor está rodando.'));
     }
   };
 
@@ -90,8 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await api.post('/dependentes', dependente, { headers: authHeader() });
       setDependentes((prev) => [...prev, response.data.dependente]);
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erro ao cadastrar dependente.');
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Erro ao cadastrar dependente.'));
     }
   };
 
@@ -101,38 +146,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setDependentes((prev) =>
         prev.map((d) => (d.id === id ? { ...d, ...response.data } : d))
       );
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erro ao editar dependente.');
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Erro ao editar dependente.'));
     }
   };
 
   const deleteDependente = async (id: string) => {
-    console.log('AuthContext.deleteDependente chamado, id:', id);
-    console.log('token atual:', tokenRef.current ? 'presente' : 'AUSENTE');
     try {
-      const url = `/dependentes/${id}`;
-      console.log('fazendo DELETE para:', url);
-      const response = await api.delete(url, { headers: authHeader() });
-      console.log('resposta do servidor:', response.status, response.data);
+      await api.delete(`/dependentes/${id}`, { headers: authHeader() });
       setDependentes((prev) => prev.filter((d) => d.id !== id));
       setMedications((prev) => prev.filter((m) => m.dependenteId !== id));
-    } catch (error: any) {
-      console.log('ERRO na requisicao:', error.response?.status, error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || 'Erro ao remover dependente.');
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Erro ao remover dependente.'));
     }
   };
 
   // Medicamentos
 
-  const parseDias = (dias: any): string[] =>
-    Array.isArray(dias) ? dias : JSON.parse(dias);
+  const parseDias = (dias: unknown): string[] =>
+    Array.isArray(dias) ? (dias as string[]) : JSON.parse(dias as string);
 
   const loadMedications = async (dependenteId: string) => {
     try {
       const response = await api.get(`/medicamentos/${dependenteId}`, { headers: authHeader() });
       setMedications((prev) => [
         ...prev.filter((m) => m.dependenteId !== dependenteId),
-        ...response.data.map((m: any) => ({
+        ...response.data.map((m: MedicamentoAPI) => ({
           id: String(m.id),
           nome: m.nome,
           dose: m.dose,
@@ -141,8 +180,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           dependenteId: String(m.dependente_id),
         })),
       ]);
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erro ao carregar medicamentos.');
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Erro ao carregar medicamentos.'));
     }
   };
 
@@ -160,20 +199,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
         { headers: authHeader() }
       );
+      const m: MedicamentoAPI = response.data;
       setMedications((prev) => [
         ...prev,
         {
-          id: String(response.data.id),
-          nome: response.data.nome,
-          dose: response.data.dose,
-          horario: response.data.horario,
-          dias: parseDias(response.data.dias),
-          compartimento: response.data.compartimento,
-          dependenteId: String(response.data.dependente_id),
+          id: String(m.id),
+          nome: m.nome,
+          dose: m.dose,
+          horario: m.horario,
+          dias: parseDias(m.dias),
+          compartimento: m.compartimento,
+          dependenteId: String(m.dependente_id),
         },
       ]);
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erro ao salvar medicamento.');
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Erro ao salvar medicamento.'));
     }
   };
 
@@ -189,11 +229,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
         { headers: authHeader() }
       );
+      const m: MedicamentoAPI = response.data;
       setMedications((prev) =>
-        prev.map((m) => (m.id === updatedMed.id ? { ...m, ...response.data } : m))
+        prev.map((item) =>
+          item.id === updatedMed.id
+            ? { ...item, nome: m.nome, dose: m.dose, horario: m.horario, dias: parseDias(m.dias) }
+            : item
+        )
       );
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erro ao atualizar medicamento.');
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Erro ao atualizar medicamento.'));
     }
   };
 
@@ -201,8 +246,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await api.delete(`/medicamentos/${id}`, { headers: authHeader() });
       setMedications((prev) => prev.filter((m) => String(m.id) !== String(id)));
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Erro ao remover medicamento.');
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Erro ao remover medicamento.'));
     }
   };
 
