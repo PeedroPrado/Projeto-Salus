@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, FlatList, Alert, ActivityIndicator } from 'react-native';
+import { 
+  View, Text, TouchableOpacity, StyleSheet, SafeAreaView, 
+  FlatList, Alert, ActivityIndicator, Modal, Platform 
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,7 +17,11 @@ export default function DependentDashboardScreen({ route, navigation }: Props) {
   const { medications, deleteMedication, loadMedications } = useAuth();
   const [loading, setLoading] = useState(true);
 
-  // Normaliza para string para garantir comparação correta independente do tipo
+  // Estados do Modal de Exclusão
+  const [modalExcluirVisible, setModalExcluirVisible] = useState(false);
+  const [medParaExcluir, setMedParaExcluir] = useState<{id: string, nome: string} | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+
   const depId = String(dependenteId);
 
   useEffect(() => {
@@ -23,7 +30,31 @@ export default function DependentDashboardScreen({ route, navigation }: Props) {
 
   const rotinaDependente = medications.filter(med => String(med.dependenteId) === depId);
 
- const handleDelete = async (id: string, nome: string) => { try { await deleteMedication(id);  } catch (error) { console.log("ERRO DELETE:", error); } };
+  // Funções de Exclusão
+  const abrirModalExcluir = (id: string, nome: string) => {
+    setMedParaExcluir({ id, nome });
+    setModalExcluirVisible(true);
+  };
+
+  const confirmarExclusao = async () => {
+    if (!medParaExcluir) return;
+
+    setExcluindo(true);
+    try {
+      await deleteMedication(medParaExcluir.id);
+      setModalExcluirVisible(false);
+      setMedParaExcluir(null);
+    } catch (error: any) {
+      console.log("ERRO DELETE:", error);
+      if (Platform.OS === 'web') {
+        window.alert(`Erro: ${error.message || 'Erro ao excluir'}`);
+      } else {
+        Alert.alert('Erro', error.message || 'Erro ao excluir');
+      }
+    } finally {
+      setExcluindo(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -64,7 +95,8 @@ export default function DependentDashboardScreen({ route, navigation }: Props) {
                   <Feather name="edit-2" size={16} color={theme.colors.textPrimary} style={{ marginRight: 4 }} />
                   <Text style={styles.editText}>Editar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.deleteBtn} onPress={() => { handleDelete(item.id, item.nome); }}>
+                
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => abrirModalExcluir(item.id, item.nome)}>
                   <Feather name="trash-2" size={16} color={theme.colors.danger} style={{ marginRight: 4 }} />
                   <Text style={styles.deleteText}>Excluir</Text>
                 </TouchableOpacity>
@@ -74,6 +106,35 @@ export default function DependentDashboardScreen({ route, navigation }: Props) {
           ListEmptyComponent={<Text style={styles.emptyText}>Nenhum medicamento cadastrado.</Text>}
         />
       )}
+
+      {/* Modal de Exclusão */}
+      <Modal visible={modalExcluirVisible} transparent animationType="fade" onRequestClose={() => setModalExcluirVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Excluir Medicamento</Text>
+
+            <Text style={styles.modalMessage}>
+              Deseja realmente excluir <Text style={{ fontWeight: 'bold' }}>{medParaExcluir?.nome}</Text> da rotina? {'\n\n'}
+              Esta ação não poderá ser desfeita.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalExcluirVisible(false)} disabled={excluindo}>
+                <Text style={styles.cancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.saveBtn, { backgroundColor: theme.colors.danger }]} 
+                onPress={confirmarExclusao} 
+                disabled={excluindo}
+              >
+                <Text style={styles.saveText}>{excluindo ? 'Excluindo...' : 'Excluir'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -94,5 +155,16 @@ const styles = StyleSheet.create({
   editText: { color: theme.colors.textPrimary, fontWeight: 'bold' },
   deleteBtn: { flexDirection: 'row', alignItems: 'center' },
   deleteText: { color: theme.colors.danger, fontWeight: 'bold' },
-  emptyText: { textAlign: 'center', marginTop: 30, color: theme.colors.textSecondary, fontSize: 16 }
+  emptyText: { textAlign: 'center', marginTop: 30, color: theme.colors.textSecondary, fontSize: 16 },
+
+  // Estilos compartilhados do Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: theme.spacing.l },
+  modalBox: { backgroundColor: theme.colors.white, borderRadius: theme.borderRadius.l, padding: theme.spacing.l, width: '100%' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.textPrimary, marginBottom: theme.spacing.l },
+  modalMessage: { fontSize: 16, color: theme.colors.textSecondary, marginBottom: theme.spacing.l, lineHeight: 22 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: theme.spacing.s },
+  cancelBtn: { paddingVertical: 10, paddingHorizontal: 20 },
+  cancelText: { color: theme.colors.textSecondary, fontWeight: 'bold' },
+  saveBtn: { backgroundColor: theme.colors.primary, paddingVertical: 10, paddingHorizontal: 20, borderRadius: theme.borderRadius.m },
+  saveText: { color: theme.colors.white, fontWeight: 'bold' },
 });
