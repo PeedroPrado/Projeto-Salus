@@ -22,7 +22,9 @@ type AuthContextData = {
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
-const api = axios.create({ baseURL: 'http://localhost:3000/api' });
+const api = axios.create({
+  baseURL: process.env.EXPO_PUBLIC_API_URL,
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

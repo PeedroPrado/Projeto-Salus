@@ -236,7 +236,7 @@ app.delete('/api/medicamentos/:id', authMiddleware, async (req: any, res) => {
 
 //Rota de IoT Eventos
 
-app.post("/iot/evento", async (req, res) => {
+app.post("/api/iot/evento", async (req, res) => {
 
   try {
 
@@ -302,7 +302,7 @@ app.post("/iot/evento", async (req, res) => {
 // ======================================
 // PROXIMO MEDICAMENTO
 // ======================================
-app.get("/iot/proximo-medicamento", async (req, res) => {
+app.get("/api/iot/proximo-medicamento", async (req, res) => {
 
   try {
 
@@ -344,14 +344,15 @@ LIMIT 1
 
 // ─── Inicialização do Servidor ────────────────────────────────────────────────
 const PORT = Number(process.env.PORT) || 3000;
+const IP = process.env.IP || '0.0.0.0';
 
 const startServer = async () => {
   try {
     await createDatabaseIfNotExists();
     await initDb();
     
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Servidor rodando na porta ${PORT}`);
+    app.listen(PORT, IP, () => {
+       console.log(`🚀 Servidor rodando em http://${IP}:${PORT}`);
     });
   } catch (error) {
     console.error('Falha ao iniciar a API:', error);
