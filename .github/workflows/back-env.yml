@@ -1,4 +1,4 @@
-name: Backend CI
+name: Salus CI
 
 on:
   push:
@@ -21,15 +21,35 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
+      - name: Install backend dependencies
         run: npm install
 
-      - name: Create .env
+      - name: Create backend .env
         run: |
           echo "PORT=${{ secrets.PORT }}" >> .env
           echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "IP=${{ secrets.IP }}" >> .env
 
-      - name: Build
+      - name: Build backend
         run: npm run build
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: source/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Check frontend
+        run: npx expo export
