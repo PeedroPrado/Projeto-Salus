@@ -25,13 +25,19 @@ docker compose up --build
 docker compose down
 ```
 
+### Para Consultar as tabelas no Docker:
+```
+cd caminho/para/source
+docker compose exec postgres psql -U postgres -d medsalus_db
+```
+
 ---
 
 ## Frontend
 
 ### `.env`:
 ```
-EXPO_PUBLIC_API_URL=http://localhost:3000/api
+EXPO_PUBLIC_API_URL=https://projeto-salus-production.up.railway.app/api
 ```
 ### Para Inicializar:
 ```
