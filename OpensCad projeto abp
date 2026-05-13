@@ -1,77 +1,138 @@
-// --- PARÂMETROS GERAIS ---
-$fn = 60;
-d_ext = 207; 
-h_carrossel = 50;
-h_base = 35; 
+// --- PROJETO SALUS V27: ADAPTADO PARA LARGURA DE 170mm (17cm) ---
+// Autor: Felipe Ribeiro de Lima (Fatec Jacareí)
 
-// --- CONTROLE DE VISUALIZAÇÃO ---
-// Mude para "true" para ver a animação funcionando
-// Mude para "false" para ver as peças separadas para exportar STL
-modo_animacao = true; 
+$fn = 80;
+
+// --- CONTROLES ---
+MODO_MONTAGEM = true; 
+ANIMAR        = true; 
+ver_tampa_superior = true; 
+
+// --- PARÂMETROS REDIMENSIONADOS (170mm) ---
+diam_base = 170;     // Reduzido de 210 para 170
+alt_base  = 60;      // Ajuste leve na altura para proporção
+alt_carr  = 30;      // Ajuste leve na altura do carrossel
+divisoes  = 8;
+angulo_furo = 45; 
+
+// --- CORES ---
+cor_base      = "Teal";
+cor_tampo     = "DimGray";
+cor_carrossel = "White";
+cor_gaveta    = "Gold";
+cor_pilula    = "OrangeRed";
+cor_tampa_sup = [0.2, 0.6, 1.0, 0.35]; 
 
 // --- LÓGICA DE MOVIMENTO ---
-angulo_carrossel = modo_animacao ? $t * 360 : 0; 
-posicao_ejetor = modo_animacao ? abs(sin($t * 360 * 12 / 2)) * 90 : 0; 
+t_rot = (MODO_MONTAGEM && ANIMAR) ? $t * 360 : 0;
+t_gav_mov = (MODO_MONTAGEM && ANIMAR) ? (abs(sin($t * 360)) * 35) : 0;
 
-// --- MONTAGEM PRINCIPAL ---
-if (modo_animacao) {
-    // VISUALIZAÇÃO DO SISTEMA EM FUNCIONAMENTO
-    base_fixa();
-    
-    rotate([0, 0, angulo_carrossel]) 
-        carrossel_12();
+// --- MONTAGEM ---
 
-    // Braço Ejetor sincronizado
-    translate([d_ext/2 - 5, 0, h_base + 10]) 
-        rotate([0, 0, posicao_ejetor]) 
-            braco_ejetor();
+color(cor_base) base_monobloco();
 
-    translate([115, 0, 12]) gaveta();
+pos_gav = MODO_MONTAGEM ? [(diam_base/2 - 20) + t_gav_mov, 0, 5] : [0, -diam_base, 0];
+translate(pos_gav) color(cor_gaveta) gaveta();
 
-    translate([0, 0, h_base + h_carrossel - 10])
-        tampa();
-} else {
-    // VISUALIZAÇÃO PARA EXPORTAR PEÇAS (Lado a lado)
-    translate([0, 0, 0]) carrossel_12();
-    translate([d_ext + 50, 0, 0]) base_fixa();
-    translate([d_ext + 50, d_ext, 0]) tampa();
-    translate([0, d_ext, 10]) gaveta();
+pos_tampo = MODO_MONTAGEM ? [0, 0, alt_base - 3] : [diam_base + 30, 0, 0];
+translate(pos_tampo) color(cor_tampo) tampo_com_furo_45();
+
+pos_carr = MODO_MONTAGEM ? [0, 0, alt_base + 1] : [-(diam_base + 30), 0, 0];
+translate(pos_carr) rotate([0, 0, t_rot]) {
+    color(cor_carrossel) carrossel_8_div();
+    remedios_animados(); 
 }
 
-// --- MÓDULOS (PEÇAS) ---
+if (ver_tampa_superior) {
+    pos_tampa_s = MODO_MONTAGEM ? [0, 0, alt_base + 4] : [0, diam_base + 30, 0];
+    translate(pos_tampa_s) color(cor_tampa_sup) tampa_superior_completa();
+}
 
-module carrossel_12() {
-    color("cyan", 0.8) union() {
-        difference() {
-            cylinder(h=h_carrossel, d=d_ext);
-            translate([0,0,-1]) cylinder(h=h_carrossel+2, d=d_ext-4);
+// --- MÓDULOS ---
+
+module base_monobloco() {
+    difference() {
+        union() {
+            cylinder(h=alt_base, d=diam_base);
+            translate([diam_base/2 - 15, -30, 0]) cube([20, 60, 40]);
         }
-        for (i = [0 : 11]) {
-            rotate([0, 0, i * 30])
-                translate([35, -1, 0]) cube([68.5, 2, h_carrossel]);
+        translate([0,0,3]) cylinder(h=alt_base, d=diam_base - 10);
+        rotate([0,0,-22.5]) furo_setor_circular(h=alt_base*2, r=diam_base/2 - 5, a=angulo_furo);
+        translate([diam_base/2 - 30, -27, 2]) cube([60, 54, 35]);
+        translate([-(diam_base/2 + 5), 0, 10]) rotate([0,90,0]) cylinder(h=20, d=10);
+    }
+    cylinder(h=alt_base + 5, d=18); // Eixo motor levemente menor
+}
+
+module tampo_com_furo_45() {
+    difference() {
+        union() {
+            cylinder(h=3, d=diam_base);
+            translate([0,0,-3]) cylinder(h=3, d=diam_base - 2);
         }
+        rotate([0, 0, -22.5]) furo_setor_circular(h=20, r=diam_base/2 - 10, a=45);
+        cylinder(h=20, d=20, center=true);
     }
 }
 
-module base_fixa() {
-    color("yellow") difference() {
-        cylinder(h = h_base, d = d_ext + 10);
-        translate([0, 0, h_base - 15]) cylinder(h = 20, d = d_ext + 2);
-        translate([d_ext/2 - 40, -25, -1]) cube([50, 50, h_base + 10]); 
+module carrossel_8_div() {
+    difference() {
+        union() {
+            cylinder(h=alt_carr, d=45); // Núcleo reduzido
+            for(i=[0:7]) rotate([0,0,i*45]) 
+                translate([22, -1.5, 0]) cube([diam_base/2 - 25, 3, alt_carr]);
+            translate([0,0,alt_carr-2])
+                difference() {
+                    cylinder(h=2, d=diam_base-12);
+                    translate([0,0,-1]) cylinder(h=4, d=diam_base-16);
+                }
+        }
+        cylinder(h=alt_carr+5, d=6, center=true);
     }
 }
 
-module braco_ejetor() {
-    color("red") cube([10, 40, 2]); 
+module tampa_superior_completa() {
+    difference() {
+        union() {
+            cylinder(h=alt_carr + 15, d=diam_base + 8);
+            translate([0, 0, alt_carr + 15]) cylinder(h=2, d=70);
+        }
+        translate([0, 0, -1]) cylinder(h=alt_carr + 15, d=diam_base + 4);
+        translate([0, 0, alt_carr + 16])
+            linear_extrude(2) text("SALUS", 12, halign="center", valign="center", font="Arial:style=Bold");
+    }
+}
+
+module remedios_animados() {
+    for(i=[0:7]) {
+        angulo_atual = (i * 45 + t_rot) % 360;
+        queda = (angulo_atual > 337.5 || angulo_atual < 22.5) ? -35 : 5;
+        rotate([0, 0, i * 45 + 22.5])
+            translate([diam_base/2 - 30, 0, queda])
+                color(cor_pilula) 
+                    hull() {
+                        translate([3,0,0]) sphere(d=7);
+                        translate([-3,0,0]) sphere(d=7);
+                    }
+    }
 }
 
 module gaveta() {
-    color("orange") cube([60, 50, 25], center=true);
+    difference() {
+        union() {
+            cube([65, 50, 28], center=true); // Gaveta menor para caber na base de 170
+            translate([32, 0, 0]) cube([4, 60, 32], center=true);
+        }
+        translate([0, 0, 3]) cube([55, 44, 25], center=true);
+    }
 }
 
-module tampa() {
-    color("white", 0.4) difference() {
-        cylinder(h=8, d=d_ext + 12);
-        translate([0,0,-1]) cylinder(h=6, d=d_ext + 8);
+module furo_setor_circular(h, r, a) {
+    intersection() {
+        cylinder(h=h, r=r, center=true);
+        union() {
+            cube([r, r, h]);
+            rotate([0,0,a-90]) cube([r, r, h]);
+        }
     }
 }
