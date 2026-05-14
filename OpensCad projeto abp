@@ -1,48 +1,62 @@
-// --- PROJETO SALUS V43: SINCRONIA MILIMÉTRICA 45° ---
-// Ajuste: Criação da "Laje" superior na base para evitar aspecto oco.
+// --- PROJETO SALUS V43: OTIMIZADO (ECONOMIA DE MATERIAL) ---
+// Base oca com suporte central para motor auxiliar.
 
 $fn = 80;
 
-// --- MENU DE SELEÇÃO ---
-PECA = 0; // 0=Tudo | 1=Base+IR | 2=Carrossel | 3=Gaveta | 4=Tampa
+// --- MENU DE CONTROLE ---
+MODO = 0; // 0: Montado | 1: Explodido | 2: Individual
+PECA = 1; // Para MODO 2: 1=Base, 2=Carrossel, 3=Gaveta, 4=Tampa, 5=Lâmina
 
 // --- PARÂMETROS ---
 diam_base = 150;
 alt_base  = 40;
 alt_carr  = 26;
 fatia_ang = 45; 
+esp_lamina = 3; 
 
 // CORES
 cor_base      = [0.0, 0.4, 0.8]; // Azul
 cor_tampa    = [0.6, 1.0, 0.8]; // Verde Menta
 cor_carrossel = [1.0, 1.0, 1.0]; // Branco
+cor_plug      = [1.0, 0.8, 0.0]; // Amarelo (Lâmina)
 
 // ════════════════════════════════════════════
 //  LÓGICA DE MONTAGEM
 // ════════════════════════════════════════════
 
-if (PECA == 0) {
+if (MODO == 0) {
     color(cor_base) base_sincronizada();
+    
+    // Lâmina triangular pivotante centralizada
+    translate([0, 0, alt_base - esp_lamina - 1]) 
+        rotate([0, 0, (sin($t*360)>0)? 0 : -55]) 
+            color(cor_plug) lamina_triangular_central();
     
     translate([45, 0, 11]) color([0.9, 0.9, 0.9]) gaveta_slim();
     
-    // Carrossel sobre a laje da base
-    translate([0, 0, alt_base + 1]) {
-        rotate([0, 0, $t*360]) {
-            color(cor_carrossel) carrossel_leve();
-            remedios_animados();
-        }
+    translate([0, 0, alt_base + 1]) rotate([0, 0, $t*360]) {
+        color(cor_carrossel) carrossel_leve();
+        remedios_animados();
     }
-
-    // Tampa Verde Menta
-    translate([0, 0, alt_base + 0.5]) 
-        color(cor_tampa, 0.7) tampa_superior_slim(); 
+    translate([0, 0, alt_base + 0.5]) color(cor_tampa, 0.6) tampa_superior_slim(); 
 }
 
-if (PECA == 1) color(cor_base) base_sincronizada();
-if (PECA == 2) color(cor_carrossel) carrossel_leve();
-if (PECA == 3) gaveta_slim();
-if (PECA == 4) color(cor_tampa) tampa_superior_slim();
+else if (MODO == 1) {
+    // Modo Explodido para ver todas as peças separadas
+    translate([0, 0, 0]) color(cor_base) base_sincronizada();
+    translate([0, 160, 0]) color(cor_carrossel) carrossel_leve();
+    translate([160, 0, 0]) color(cor_tampa) tampa_superior_slim();
+    translate([160, 100, 11]) color([0.9, 0.9, 0.9]) gaveta_slim();
+    translate([80, -120, 0]) color(cor_plug) lamina_triangular_central();
+}
+
+else if (MODO == 2) {
+    if (PECA == 1) color(cor_base) base_sincronizada();
+    if (PECA == 2) color(cor_carrossel) carrossel_leve();
+    if (PECA == 3) gaveta_slim();
+    if (PECA == 4) color(cor_tampa) tampa_superior_slim();
+    if (PECA == 5) color(cor_plug) lamina_triangular_central();
+}
 
 // ════════════════════════════════════════════
 //  MÓDULOS REVISADOS
@@ -53,20 +67,48 @@ module base_sincronizada() {
         // Bloco principal
         cylinder(h=alt_base, d=diam_base);
         
-        // OCO INTERIOR (Agora não atravessa o topo!)
-        // Ele vai de -1 até alt_base - 4 (deixa 4mm de teto)
+        // ECONOMIA DE MATERIAL: Oco interno maior (Base tipo "casca")
+        // Deixa 4mm de parede lateral e 4mm de teto
         translate([0, 0, -1]) 
-            cylinder(h=alt_base - 3, d=diam_base - 10);
+            cylinder(h=alt_base - 3, d=diam_base - 8);
         
-        // FURO DE QUEDA (Este sim atravessa tudo)
+        // Vão de queda
         rotate([0, 0, -fatia_ang/2]) 
             furo_setor_pizza_exato(h=alt_base*3, r=diam_base/2 + 5, a=fatia_ang);
             
-        // Furo central para o eixo do motor
-        cylinder(h=alt_base*4, d=6, center=true); 
+        // Furo central para o eixo
+        cylinder(h=alt_base*4, d=10, center=true); 
         
-        // Vão da gaveta
-        translate([35, -24, -1]) cube([50, 48, alt_base - 4 + 1]); 
+        // Vão da gaveta livre de obstruções
+        translate([35, -24, -1]) cube([50, 48, alt_base - 3.5]); 
+    }
+    
+    // Suporte central para o Servo Auxiliar (perto do eixo)
+    // Pequena ponte para fixação sem gastar material extra
+    translate([-12, -12, 1])
+        difference() {
+            cube([24, 24, 8]);
+            translate([2, 2, -1]) cube([20, 20, 10]); // Encaixe do Servo
+        }
+}
+
+module lamina_triangular_central() {
+    difference() {
+        union() {
+            // A fatia triangular
+            rotate([0, 0, -fatia_ang/2])
+            intersection() {
+                cylinder(h=esp_lamina, d=diam_base - 10);
+                linear_extrude(height=esp_lamina)
+                    polygon(points=[[0,0], [diam_base,0], [diam_base*cos(fatia_ang), diam_base*sin(fatia_ang)], [0,0]]);
+            }
+            // Anel de rotação central
+            cylinder(h=esp_lamina + 1.5, d=22);
+        }
+        // Furo central para o eixo do motor principal passar
+        cylinder(h=20, d=12, center=true);
+        // Furo de fixação para o braço do servo
+        translate([8, 0, -1]) cylinder(h=10, d=3);
     }
 }
 
@@ -86,13 +128,9 @@ module tampa_superior_slim() {
     union() {
         difference() {
             cylinder(h=alt_tampa_total, d=diam_base);
-            // Oco para vestir o carrossel
-            translate([0, 0, -1]) 
-                cylinder(h=alt_tampa_total - 2, d=diam_base - 4);
-            // Furo do eixo no topo da tampa
+            translate([0, 0, -1]) cylinder(h=alt_tampa_total - 2, d=diam_base - 4);
             translate([0,0,-1]) cylinder(h=alt_tampa_total + 2, d=7);
         }
-        // Texto SALUS
         translate([0, 0, alt_tampa_total - 0.1]) 
         linear_extrude(height = 2) 
             text("SALUS", size = 15, font = "Arial:style=Bold", halign = "center", valign = "center");
@@ -117,7 +155,6 @@ module gaveta_slim() {
 module remedios_animados() {
     for(i=[0:7]) {
         ang = (i * 45 + $t*360 + 22.5) % 360; 
-        // O remédio "anda" sobre o teto da base e só cai no furo
         queda = (ang > 337.5 || ang < 22.5) ? -100*$t : 5; 
         rotate([0,0, i * 45 + 22.5]) translate([45, 0, queda]) color("OrangeRed") sphere(d=7);
     }
