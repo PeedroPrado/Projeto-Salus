@@ -1,114 +1,135 @@
-// --- PROJETO SALUS V43: OTIMIZADO (ECONOMIA DE MATERIAL) ---
-// Base oca com suporte central para motor auxiliar.
+// --- PROJETO SALUS V45: FINAL (ABAS CURVAS E FLUXO LIVRE) ---
+// Autor: Felipe Ribeiro de Lima - FATEC Jacareí
+// Foco: Montagem Industrial, Robustez e Sensor IR
 
 $fn = 80;
 
 // --- MENU DE CONTROLE ---
-MODO = 0; // 0: Montado | 1: Explodido | 2: Individual
-PECA = 1; // Para MODO 2: 1=Base, 2=Carrossel, 3=Gaveta, 4=Tampa, 5=Lâmina
+MODO = 1; // 0: Montado | 1: Expandido | 2: Individual (Exportar STL)
+PECA = 1; // Para MODO 2: 1:Base, 2:Carrossel, 3:Gaveta, 4:Tampa, 5:Lâmina, 6:Suporte de Motores
 
-// --- PARÂMETROS ---
-diam_base = 150;
-alt_base  = 40;
-alt_carr  = 26;
-fatia_ang = 45; 
+// --- PARÂMETROS TÉCNICOS ---
+diam_base  = 150;
+alt_base   = 45; 
+alt_carr   = 26;
+fatia_ang  = 45; 
 esp_lamina = 3; 
 
-// CORES
-cor_base      = [0.0, 0.4, 0.8]; // Azul
-cor_tampa    = [0.6, 1.0, 0.8]; // Verde Menta
-cor_carrossel = [1.0, 1.0, 1.0]; // Branco
-cor_plug      = [1.0, 0.8, 0.0]; // Amarelo (Lâmina)
-
 // ════════════════════════════════════════════
-//  LÓGICA DE MONTAGEM
+//  LÓGICA DE VISUALIZAÇÃO
 // ════════════════════════════════════════════
 
 if (MODO == 0) {
-    color(cor_base) base_sincronizada();
-    
-    // Lâmina triangular pivotante centralizada
-    translate([0, 0, alt_base - esp_lamina - 1]) 
-        rotate([0, 0, (sin($t*360)>0)? 0 : -55]) 
-            color(cor_plug) lamina_triangular_central();
-    
+    // VISÃO MONTADA
+    color([0, 0.4, 0.8], 0.4) base_sincronizada(); 
+    translate([0,0,5]) color([0.3, 0.3, 0.3]) suporte_motores_c_abas();
+    translate([0, 0, alt_base - esp_lamina - 1.5]) 
+        rotate([0, 0, (sin($t*360)>0)? 0 : -55]) color([1, 0.8, 0]) lamina_triangular_central();
     translate([45, 0, 11]) color([0.9, 0.9, 0.9]) gaveta_slim();
-    
-    translate([0, 0, alt_base + 1]) rotate([0, 0, $t*360]) {
-        color(cor_carrossel) carrossel_leve();
-        remedios_animados();
-    }
-    translate([0, 0, alt_base + 0.5]) color(cor_tampa, 0.6) tampa_superior_slim(); 
+    translate([0, 0, alt_base + 1.5]) rotate([0, 0, $t*360]) color([1, 1, 1]) carrossel_leve();
+    translate([0, 0, alt_base + 0.5]) color([0.6, 1, 0.8], 0.6) tampa_superior_slim(); 
 }
 
 else if (MODO == 1) {
-    // Modo Explodido para ver todas as peças separadas
-    translate([0, 0, 0]) color(cor_base) base_sincronizada();
-    translate([0, 160, 0]) color(cor_carrossel) carrossel_leve();
-    translate([160, 0, 0]) color(cor_tampa) tampa_superior_slim();
-    translate([160, 100, 11]) color([0.9, 0.9, 0.9]) gaveta_slim();
-    translate([80, -120, 0]) color(cor_plug) lamina_triangular_central();
+    // VISÃO EXPANDIDA
+    translate([0, 0, 0]) color([0, 0.4, 0.8]) base_sincronizada();
+    translate([0, 170, 0]) color([1, 1, 1]) carrossel_leve();
+    translate([170, 0, 0]) color([0.6, 1, 0.8]) tampa_superior_slim();
+    translate([170, 170, 11]) color([0.9, 0.9, 0.9]) gaveta_slim();
+    translate([-170, 0, 0]) color([1, 0.8, 0]) lamina_triangular_central();
+    translate([-170, 170, 0]) color([0.3, 0.3, 0.3]) suporte_motores_c_abas();
 }
 
 else if (MODO == 2) {
-    if (PECA == 1) color(cor_base) base_sincronizada();
-    if (PECA == 2) color(cor_carrossel) carrossel_leve();
+    if (PECA == 1) base_sincronizada();
+    if (PECA == 2) carrossel_leve();
     if (PECA == 3) gaveta_slim();
-    if (PECA == 4) color(cor_tampa) tampa_superior_slim();
-    if (PECA == 5) color(cor_plug) lamina_triangular_central();
+    if (PECA == 4) tampa_superior_slim();
+    if (PECA == 5) lamina_triangular_central();
+    if (PECA == 6) suporte_motores_c_abas();
 }
 
 // ════════════════════════════════════════════
-//  MÓDULOS REVISADOS
+//  PEÇA 6: SUPORTE EM "C" COM ABAS DE FIXAÇÃO
+// ════════════════════════════════════════════
+
+module suporte_motores_c_abas() {
+    larg_b = 22; 
+    r_interno = (diam_base - 8) / 2; // Raio de encosto na parede interna
+    
+    difference() {
+        union() {
+            // Braços em C
+            rotate([0,0,90]) translate([-(diam_base-14)/2, -larg_b/2, 0]) cube([(diam_base-14), larg_b, 5]);
+            rotate([0,0,180]) translate([0, -larg_b/2, 0]) cube([(diam_base-14)/2, larg_b, 5]);
+            
+            // ABAS VERTICAIS CURVAS (Parafusar na lateral da base)
+            for(r=[90, 180, 270]) rotate([0,0,r]) {
+                translate([r_interno - 4, -larg_b/2, 0]) 
+                    cube([4, larg_b, 18]); // Altura de 18mm para boa área de contato
+            }
+
+            // Hub Central (Motor Metálico)
+            cylinder(h=12, d=38);
+            
+            // Suporte do Servo SG90
+            translate([-15, 12, 0]) cube([30, 25, 20]);
+        }
+        
+        // Furo Central Motor Metal
+        cylinder(h=50, d=15, center=true); 
+        for(r=[0:120:360]) rotate([0,0,r]) translate([11, 0, -1]) cylinder(h=20, d=3.2);
+        
+        // Rasgo Servo SG90
+        translate([-12, 14, 8]) cube([24, 21, 22]); 
+        
+        // FUROS DE FIXAÇÃO NAS ABAS (Entrada horizontal do parafuso)
+        for(r=[90, 180, 270]) rotate([0,0,r]) 
+            translate([r_interno + 5, 0, 10]) rotate([0, 90, 0]) cylinder(h=20, d=4.2, center=true);
+        
+        // CANAL LIVRE DE QUEDA (45°)
+        rotate([0,0,-22.5]) furo_setor_pizza_exato(h=100, r=diam_base, a=45);
+    }
+}
+
+// ════════════════════════════════════════════
+//  DEMAIS MÓDULOS REVISADOS
 // ════════════════════════════════════════════
 
 module base_sincronizada() {
+    r_interno = (diam_base - 8) / 2;
     difference() {
-        // Bloco principal
         cylinder(h=alt_base, d=diam_base);
+        translate([0, 0, -1]) cylinder(h=alt_base - 3.5, d=diam_base - 8);
+        rotate([0, 0, -22.5]) furo_setor_pizza_exato(h=alt_base*3, r=diam_base/2 + 5, a=45);
+        cylinder(h=alt_base*4, d=18, center=true); 
+        translate([35, -24, -1]) cube([50, 48, alt_base - 4]); 
         
-        // ECONOMIA DE MATERIAL: Oco interno maior (Base tipo "casca")
-        // Deixa 4mm de parede lateral e 4mm de teto
-        translate([0, 0, -1]) 
-            cylinder(h=alt_base - 3, d=diam_base - 8);
+        // Furos Sensor IR
+        translate([60, 20, 11]) rotate([0, 90, 0]) cylinder(h=40, d=5.2, center=true);
+        translate([60, -20, 11]) rotate([0, 90, 0]) cylinder(h=40, d=5.2, center=true);
         
-        // Vão de queda
-        rotate([0, 0, -fatia_ang/2]) 
-            furo_setor_pizza_exato(h=alt_base*3, r=diam_base/2 + 5, a=fatia_ang);
-            
-        // Furo central para o eixo
-        cylinder(h=alt_base*4, d=10, center=true); 
+        // Travas da Tampa
+        for(r=[45:90:360]) rotate([0,0,r]) translate([diam_base/2 - 4.5, -4, alt_base - 5]) cube([7, 9, 6]);
         
-        // Vão da gaveta livre de obstruções
-        translate([35, -24, -1]) cube([50, 48, alt_base - 3.5]); 
+        // FUROS NA LATERAL PARA FIXAR O SUPORTE (PECA 6)
+        // Alinhados com as abas da cruz (Altura Z=15 para ficar acima da gaveta)
+        for(r=[90, 180, 270]) rotate([0,0,r]) 
+            translate([r_interno + 5, 0, 15]) rotate([0, 90, 0]) cylinder(h=20, d=4.2, center=true);
     }
-    
-    // Suporte central para o Servo Auxiliar (perto do eixo)
-    // Pequena ponte para fixação sem gastar material extra
-    translate([-12, -12, 1])
-        difference() {
-            cube([24, 24, 8]);
-            translate([2, 2, -1]) cube([20, 20, 10]); // Encaixe do Servo
-        }
 }
 
 module lamina_triangular_central() {
     difference() {
         union() {
-            // A fatia triangular
-            rotate([0, 0, -fatia_ang/2])
-            intersection() {
-                cylinder(h=esp_lamina, d=diam_base - 10);
-                linear_extrude(height=esp_lamina)
-                    polygon(points=[[0,0], [diam_base,0], [diam_base*cos(fatia_ang), diam_base*sin(fatia_ang)], [0,0]]);
+            rotate([0, 0, -22.5]) intersection() {
+                cylinder(h=esp_lamina, d=diam_base - 14);
+                linear_extrude(height=esp_lamina) polygon(points=[[0,0], [diam_base,0], [diam_base*cos(45), diam_base*sin(45)], [0,0]]);
             }
-            // Anel de rotação central
-            cylinder(h=esp_lamina + 1.5, d=22);
+            cylinder(h=esp_lamina + 1.5, d=28);
         }
-        // Furo central para o eixo do motor principal passar
-        cylinder(h=20, d=12, center=true);
-        // Furo de fixação para o braço do servo
-        translate([8, 0, -1]) cylinder(h=10, d=3);
+        cylinder(h=20, d=19, center=true); // Passagem livre eixo motor metal
+        translate([11, 0, -1]) cylinder(h=10, d=3.5); 
     }
 }
 
@@ -116,32 +137,22 @@ module carrossel_leve() {
     difference() {
         union() {
             cylinder(h=alt_carr, d=35); 
-            for(i=[0:7]) rotate([0,0,i*45])
-                translate([17.5, -1, 0]) cube([diam_base/2 - 20, 2, alt_carr]);
+            for(i=[0:7]) rotate([0,0,i*45]) translate([17.5, -1, 0]) cube([diam_base/2 - 20, 2, alt_carr]);
         }
-        translate([0,0,-1]) cylinder(h=alt_carr+2, d=5.4);
+        cylinder(h=alt_carr+2, d=6.2, center=true); 
     }
 }
 
 module tampa_superior_slim() {
-    alt_tampa_total = alt_carr + 6;
+    alt_t = alt_carr + 6;
     union() {
         difference() {
-            cylinder(h=alt_tampa_total, d=diam_base);
-            translate([0, 0, -1]) cylinder(h=alt_tampa_total - 2, d=diam_base - 4);
-            translate([0,0,-1]) cylinder(h=alt_tampa_total + 2, d=7);
+            cylinder(h=alt_t, d=diam_base);
+            translate([0, 0, -1]) cylinder(h=alt_t - 2, d=diam_base - 4);
+            translate([0,0,-1]) cylinder(h=alt_t + 2, d=8);
         }
-        translate([0, 0, alt_tampa_total - 0.1]) 
-        linear_extrude(height = 2) 
-            text("SALUS", size = 15, font = "Arial:style=Bold", halign = "center", valign = "center");
-    }
-}
-
-module furo_setor_pizza_exato(h, r, a) {
-    intersection() {
-        cylinder(h=h, r=r, center=true);
-        linear_extrude(height=h, center=true)
-            polygon(points=[[0,0], [r+2,0], [r*cos(a)+2, r*sin(a)+2], [0,0]]);
+        for(p=[45:90:360]) rotate([0,0,p]) translate([diam_base/2 - 4, -3.5, -4]) cube([4, 7, 5]);
+        translate([0, 0, alt_t - 0.1]) linear_extrude(height = 2) text("SALUS", size = 15, font = "Arial:style=Bold", halign = "center", valign = "center");
     }
 }
 
@@ -149,13 +160,14 @@ module gaveta_slim() {
     difference() {
         cube([50, 48, 22], center=true);
         translate([0, 0, 2]) cube([46, 44, 20], center=true);
+        rotate([0, 90, 0]) translate([-2, 20, 0]) cylinder(h=60, d=5.2, center=true);
+        rotate([0, 90, 0]) translate([-2, -20, 0]) cylinder(h=60, d=5.2, center=true);
     }
 }
 
-module remedios_animados() {
-    for(i=[0:7]) {
-        ang = (i * 45 + $t*360 + 22.5) % 360; 
-        queda = (ang > 337.5 || ang < 22.5) ? -100*$t : 5; 
-        rotate([0,0, i * 45 + 22.5]) translate([45, 0, queda]) color("OrangeRed") sphere(d=7);
+module furo_setor_pizza_exato(h, r, a) {
+    intersection() {
+        cylinder(h=h, r=r, center=true);
+        linear_extrude(height=h, center=true) polygon(points=[[0,0], [r+2,0], [r*cos(a)+2, r*sin(a)+2], [0,0]]);
     }
 }
