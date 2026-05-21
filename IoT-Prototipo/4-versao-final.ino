@@ -20,9 +20,11 @@
 // WIFI
 // ======================================
 
-const char* ssid = "LENIN&MARX";
+const char* ssid =
+  "TEO e FRED";
 
-const char* password = "anabrava";
+const char* password =
+  "casadosgatos";
 
 // ======================================
 // MQTT
@@ -33,11 +35,15 @@ const char* mqttServer =
 
 const int mqttPort = 1883;
 
-const char* topicoEventos =
-  "fatec/salus/capydev/eventos";
+// ======================================
+// TÓPICOS MQTT
+// ======================================
 
 const char* topicoComandos =
   "fatec/salus/capydev/comandos";
+
+const char* topicoEventos =
+  "fatec/salus/capydev/eventos";
 
 // ======================================
 // LEDS
@@ -54,7 +60,7 @@ const int ledVerde = 5;
 const int buzzerPin = 23;
 
 // ======================================
-// SENSOR IR GAVETA
+// SENSOR IR
 // ======================================
 
 const int sensorGaveta = 13;
@@ -64,8 +70,6 @@ const int sensorGaveta = 13;
 // ======================================
 
 const int stepsPerRevolution = 2048;
-
-// ULN2003
 
 const int IN1 = 14;
 const int IN2 = 27;
@@ -81,7 +85,15 @@ Stepper motor(
 );
 
 // ======================================
-// LCD
+// SERVO SG90
+// ======================================
+
+Servo servoPorta;
+
+const int pinoServo = 18;
+
+// ======================================
+// LCD I2C
 // ======================================
 
 LiquidCrystal_I2C lcd(
@@ -91,12 +103,14 @@ LiquidCrystal_I2C lcd(
 );
 
 // ======================================
-// SERVO SG90
+// MQTT
 // ======================================
 
-Servo servoPorta;
+WiFiClient espClient;
 
-const int pinoServo = 18;
+PubSubClient client(
+  espClient
+);
 
 // ======================================
 // VARIÁVEIS GLOBAIS
@@ -106,13 +120,7 @@ String nomeMedicamento = "";
 
 int medicamentoId = 0;
 
-// ======================================
-// OBJETOS MQTT
-// ======================================
-
-WiFiClient espClient;
-
-PubSubClient client(espClient);
+int compartimentoAtual = 0;
 
 // ======================================
 // DESLIGA MOTOR
@@ -131,24 +139,39 @@ void desligarMotor() {
 }
 
 // ======================================
-// TOCA BUZZER
+// TOCA BUZZER COM PWM
 // ======================================
 
 void tocarBuzzer(
-  int tempo
+  int repeticoes,
+  int tempoLigado,
+  int tempoDesligado
 ) {
 
-  digitalWrite(
-    buzzerPin,
-    HIGH
-  );
+  for (
+    int i = 0;
+    i < repeticoes;
+    i++
+  ) {
 
-  delay(tempo);
+    tone(
+      buzzerPin,
+      1500
+    );
 
-  digitalWrite(
-    buzzerPin,
-    LOW
-  );
+    delay(
+      tempoLigado
+    );
+
+    noTone(
+      buzzerPin
+    );
+
+    delay(
+      tempoDesligado
+    );
+
+  }
 
 }
 
@@ -166,11 +189,15 @@ void conectarWiFi() {
 
   lcd.setCursor(0, 0);
 
-  lcd.print("Conectando");
+  lcd.print(
+    "Conectando"
+  );
 
   lcd.setCursor(0, 1);
 
-  lcd.print("WiFi...");
+  lcd.print(
+    "WiFi..."
+  );
 
   WiFi.begin(
     ssid,
@@ -178,7 +205,8 @@ void conectarWiFi() {
   );
 
   while (
-    WiFi.status() != WL_CONNECTED
+    WiFi.status()
+    != WL_CONNECTED
   ) {
 
     delay(500);
@@ -201,7 +229,9 @@ void conectarWiFi() {
 
   lcd.setCursor(0, 0);
 
-  lcd.print("WiFi OK");
+  lcd.print(
+    "WiFi OK"
+  );
 
   delay(2000);
 
@@ -213,7 +243,9 @@ void conectarWiFi() {
 
 void conectarMQTT() {
 
-  while (!client.connected()) {
+  while (
+    !client.connected()
+  ) {
 
     Serial.println(
       "Conectando MQTT..."
@@ -223,17 +255,24 @@ void conectarMQTT() {
 
     lcd.setCursor(0, 0);
 
-    lcd.print("Conectando");
+    lcd.print(
+      "Conectando"
+    );
 
     lcd.setCursor(0, 1);
 
-    lcd.print("MQTT...");
+    lcd.print(
+      "MQTT..."
+    );
 
     String clientId =
       "ESP32-SALUS-";
 
     clientId +=
-      String(random(0xffff), HEX);
+      String(
+        random(0xffff),
+        HEX
+      );
 
     if (
       client.connect(
@@ -249,11 +288,9 @@ void conectarMQTT() {
 
       lcd.setCursor(0, 0);
 
-      lcd.print("MQTT OK");
-
-      // ======================================
-      // ESCUTA COMANDOS
-      // ======================================
+      lcd.print(
+        "MQTT OK"
+      );
 
       client.subscribe(
         topicoComandos
@@ -287,10 +324,15 @@ void enviarEvento(
   String status
 ) {
 
-  DynamicJsonDocument doc(1024);
+  DynamicJsonDocument doc(
+    1024
+  );
 
   doc["medicamento_id"] =
     medicamentoId;
+
+  doc["compartimento"] =
+    compartimentoAtual;
 
   doc["nome"] =
     nomeMedicamento;
@@ -334,15 +376,15 @@ void avancarDispenser() {
 
   lcd.setCursor(0, 0);
 
-  lcd.print("Girando");
+  lcd.print(
+    "Girando"
+  );
 
   lcd.setCursor(0, 1);
 
-  lcd.print("carrossel");
-
-  // ======================================
-  // 1 POSIÇÃO
-  // ======================================
+  lcd.print(
+    "carrossel"
+  );
 
   motor.step(256);
 
@@ -366,29 +408,21 @@ void abrirComporta() {
 
   lcd.setCursor(0, 0);
 
-  lcd.print("Liberando");
+  lcd.print(
+    "Liberando"
+  );
 
   lcd.setCursor(0, 1);
 
-  lcd.print(nomeMedicamento);
-
-  // ======================================
-  // ABRE SERVO
-  // ======================================
+  lcd.print(
+    nomeMedicamento
+  );
 
   servoPorta.write(90);
 
   delay(1000);
 
-  // ======================================
-  // TEMPO QUEDA
-  // ======================================
-
   delay(2000);
-
-  // ======================================
-  // FECHA SERVO
-  // ======================================
 
   servoPorta.write(0);
 
@@ -416,13 +450,10 @@ bool aguardarRemedio() {
 
     client.loop();
 
-    // ======================================
-    // REMÉDIO DETECTADO
-    // ======================================
-
     if (
-      digitalRead(sensorGaveta)
-      == LOW
+      digitalRead(
+        sensorGaveta
+      ) == LOW
     ) {
 
       return true;
@@ -455,13 +486,10 @@ bool aguardarRetirada() {
 
     client.loop();
 
-    // ======================================
-    // REMÉDIO RETIRADO
-    // ======================================
-
     if (
-      digitalRead(sensorGaveta)
-      == HIGH
+      digitalRead(
+        sensorGaveta
+      ) == HIGH
     ) {
 
       return true;
@@ -480,21 +508,9 @@ bool aguardarRetirada() {
 
 void processarEntrega() {
 
-  // ======================================
-  // GIRA CARROSSEL
-  // ======================================
-
   avancarDispenser();
 
-  // ======================================
-  // ABRE COMPORTA
-  // ======================================
-
   abrirComporta();
-
-  // ======================================
-  // VERIFICA GAVETA
-  // ======================================
 
   bool remedioDisponivel =
     aguardarRemedio();
@@ -503,23 +519,33 @@ void processarEntrega() {
   // FALHA ENTREGA
   // ======================================
 
-  if (!remedioDisponivel) {
+  if (
+    !remedioDisponivel
+  ) {
 
     Serial.println(
-      "Falha ao entregar"
+      "Falha entrega"
     );
 
     lcd.clear();
 
     lcd.setCursor(0, 0);
 
-    lcd.print("Falha");
+    lcd.print(
+      "Falha"
+    );
 
     lcd.setCursor(0, 1);
 
-    lcd.print("Entrega");
+    lcd.print(
+      "Entrega"
+    );
 
-    tocarBuzzer(3000);
+    tocarBuzzer(
+      5,
+      300,
+      300
+    );
 
     enviarEvento(
       "falha_entrega"
@@ -541,18 +567,36 @@ void processarEntrega() {
 
   lcd.setCursor(0, 0);
 
-  lcd.print("Retire o");
+  lcd.print(
+    "Retire o"
+  );
 
   lcd.setCursor(0, 1);
 
-  lcd.print("remedio");
+  lcd.print(
+    "remedio"
+  );
 
   digitalWrite(
     ledVermelho,
     HIGH
   );
 
-  tocarBuzzer(1000);
+ for (
+  int i = 0;
+  i < 4;
+  i++
+) {
+
+  tocarBuzzer(
+    2,
+    150,
+    150
+  );
+
+  delay(1000);
+
+}
 
   enviarEvento(
     "disponivel"
@@ -584,18 +628,26 @@ void processarEntrega() {
 
     lcd.setCursor(0, 0);
 
-    lcd.print("Remedio");
+    lcd.print(
+      "Remedio"
+    );
 
     lcd.setCursor(0, 1);
 
-    lcd.print("retirado");
+    lcd.print(
+      "retirado"
+    );
 
     digitalWrite(
       ledVerde,
       HIGH
     );
 
-    tocarBuzzer(300);
+    tocarBuzzer(
+      1,
+      100,
+      0
+    );
 
     enviarEvento(
       "retirado"
@@ -622,13 +674,21 @@ void processarEntrega() {
 
     lcd.setCursor(0, 0);
 
-    lcd.print("Nao");
+    lcd.print(
+      "Nao"
+    );
 
     lcd.setCursor(0, 1);
 
-    lcd.print("retirado");
+    lcd.print(
+      "retirado"
+    );
 
-    tocarBuzzer(5000);
+    tocarBuzzer(
+      10,
+      200,
+      200
+    );
 
     enviarEvento(
       "nao_retirado"
@@ -646,16 +706,20 @@ void processarEntrega() {
 
   lcd.setCursor(0, 0);
 
-  lcd.print("Projeto Salus");
+  lcd.print(
+    "Projeto Salus"
+  );
 
   lcd.setCursor(0, 1);
 
-  lcd.print("Aguardando");
+  lcd.print(
+    "Aguardando"
+  );
 
 }
 
 // ======================================
-// RECEBE COMANDOS MQTT
+// CALLBACK MQTT
 // ======================================
 
 void callback(
@@ -685,11 +749,9 @@ void callback(
     mensagem
   );
 
-  // ======================================
-  // PROCESSA JSON
-  // ======================================
-
-  DynamicJsonDocument doc(1024);
+  DynamicJsonDocument doc(
+    1024
+  );
 
   DeserializationError erro =
     deserializeJson(
@@ -710,12 +772,12 @@ void callback(
   medicamentoId =
     doc["id"];
 
-  nomeMedicamento =
-    doc["nome"].as<String>();
+  compartimentoAtual =
+    doc["compartimento"];
 
-  // ======================================
-  // LOGS
-  // ======================================
+  nomeMedicamento =
+    doc["nome"]
+      .as<String>();
 
   Serial.println(
     "Processando..."
@@ -728,10 +790,6 @@ void callback(
   Serial.println(
     nomeMedicamento
   );
-
-  // ======================================
-  // PROCESSA ENTREGA
-  // ======================================
 
   processarEntrega();
 
@@ -755,7 +813,9 @@ void setup() {
 
   lcd.setCursor(0, 0);
 
-  lcd.print("Projeto Salus");
+  lcd.print(
+    "Projeto Salus"
+  );
 
   delay(2000);
 
@@ -790,11 +850,6 @@ void setup() {
   pinMode(
     buzzerPin,
     OUTPUT
-  );
-
-  digitalWrite(
-    buzzerPin,
-    LOW
   );
 
   // ======================================
@@ -851,11 +906,15 @@ void setup() {
 
   lcd.setCursor(0, 0);
 
-  lcd.print("Sistema pronto");
+  lcd.print(
+    "Sistema pronto"
+  );
 
   lcd.setCursor(0, 1);
 
-  lcd.print("Aguardando");
+  lcd.print(
+    "Aguardando"
+  );
 
 }
 
@@ -865,7 +924,9 @@ void setup() {
 
 void loop() {
 
-  if (!client.connected()) {
+  if (
+    !client.connected()
+  ) {
 
     conectarMQTT();
 
