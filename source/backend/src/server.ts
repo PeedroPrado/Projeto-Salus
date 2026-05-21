@@ -7,6 +7,7 @@ import authRoutes from './routes/auth';
 import dependentesRoutes from './routes/dependentes';
 import medicamentosRoutes from './routes/medicamentos';
 import iotRoutes from './routes/iot';
+import './config/mqtt';
 
 const app = express();
 app.use(cors());

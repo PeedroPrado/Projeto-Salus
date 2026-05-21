@@ -6,8 +6,8 @@
 
 ### `.env`:
 ```
-POSTGRES_USER=
-POSTGRES_PASSWORD=
+POSTGRES_USER= postgres
+POSTGRES_PASSWORD= 123
 POSTGRES_DB=medsalus_db
 #Gere com: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 JWT_SECRET=uma_chave_longa_e_aleatoria_aqui
